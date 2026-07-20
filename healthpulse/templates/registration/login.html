@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Login · HealthPulse{% endblock %}
+
+{% block auth_content %}
+<div class="hp-auth-wrap">
+  <div class="hp-auth-card glass-card animate__animated animate__fadeInUp">
+    <div class="hp-brand hp-brand-center">
+      <i class="fa-solid fa-heart-pulse"></i>
+      <span>HealthPulse</span>
+    </div>
+    <p class="hp-auth-subtitle">Personal Health Record &amp; Appointment Management</p>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="hp-flash hp-flash-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label>Username</label>
+        <input type="text" name="username" class="form-control hp-input" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label>Password</label>
+        <input type="password" name="password" class="form-control hp-input" required>
+      </div>
+      <button type="submit" class="hp-btn-primary w-100"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+    </form>
+    <p class="hp-auth-footer">Don't have an account? <a href="{% url 'accounts:register' %}">Register here</a></p>
+  </div>
+</div>
+{% endblock %}

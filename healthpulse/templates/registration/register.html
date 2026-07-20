@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block title %}Register · HealthPulse{% endblock %}
+
+{% block auth_content %}
+<div class="hp-auth-wrap">
+  <div class="hp-auth-card hp-auth-card-wide glass-card animate__animated animate__fadeInUp">
+    <div class="hp-brand hp-brand-center">
+      <i class="fa-solid fa-heart-pulse"></i>
+      <span>HealthPulse</span>
+    </div>
+    <p class="hp-auth-subtitle">Create your account</p>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="hp-flash hp-flash-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="hp-role-toggle mb-3">
+        <label class="hp-role-option">
+          <input type="radio" name="role" value="patient" checked> <i class="fa-solid fa-user"></i> Patient
+        </label>
+        <label class="hp-role-option">
+          <input type="radio" name="role" value="doctor"> <i class="fa-solid fa-user-doctor"></i> Doctor
+        </label>
+      </div>
+
+      <div class="hp-form-grid">
+        <div>
+          <label>Full Name</label>
+          {{ form.full_name|add_class:"form-control hp-input" }}
+          {% if form.full_name.errors %}<small class="hp-field-error">{{ form.full_name.errors.0 }}</small>{% endif %}
+        </div>
+        <div>
+          <label>Username</label>
+          {{ form.username|add_class:"form-control hp-input" }}
+          {% if form.username.errors %}<small class="hp-field-error">{{ form.username.errors.0 }}</small>{% endif %}
+        </div>
+        <div>
+          <label>Email</label>
+          {{ form.email|add_class:"form-control hp-input" }}
+          {% if form.email.errors %}<small class="hp-field-error">{{ form.email.errors.0 }}</small>{% endif %}
+        </div>
+        <div>
+          <label>Phone</label>
+          {{ form.phone|add_class:"form-control hp-input" }}
+          {% if form.phone.errors %}<small class="hp-field-error">{{ form.phone.errors.0 }}</small>{% endif %}
+        </div>
+        <div class="patient-only-field">
+          <label>Aadhaar (12 digits)</label>
+          {{ form.aadhaar|add_class:"form-control hp-input" }}
+          {% if form.aadhaar.errors %}<small class="hp-field-error">{{ form.aadhaar.errors.0 }}</small>{% endif %}
+        </div>
+        <div class="doctor-only-field" style="display:none;">
+          <label>Specialization</label>
+          {{ form.specialization|add_class:"form-control hp-input" }}
+        </div>
+        <div>
+          <label>Gender</label>
+          {{ form.gender|add_class:"form-select hp-input" }}
+        </div>
+        <div>
+          <label>Date of Birth</label>
+          <input type="date" name="dob" class="form-control hp-input" value="{{ form.dob.value|default:'' }}">
+          {% if form.dob.errors %}<small class="hp-field-error">{{ form.dob.errors.0 }}</small>{% endif %}
+        </div>
+        <div class="hp-form-full patient-only-field">
+          <label>Address</label>
+          {{ form.address|add_class:"form-control hp-input" }}
+        </div>
+        <div>
+          <label>Password</label>
+          {{ form.password|add_class:"form-control hp-input" }}
+          {% if form.password.errors %}<small class="hp-field-error">{{ form.password.errors.0 }}</small>{% endif %}
+        </div>
+        <div>
+          <label>Confirm Password</label>
+          {{ form.confirm_password|add_class:"form-control hp-input" }}
+          {% if form.confirm_password.errors %}<small class="hp-field-error">{{ form.confirm_password.errors.0 }}</small>{% endif %}
+        </div>
+        <div class="hp-form-full hp-form-actions">
+          <button type="submit" class="hp-btn-primary"><i class="fa-solid fa-user-plus"></i> Create Account</button>
+        </div>
+      </div>
+    </form>
+    <p class="hp-auth-footer">Already have an account? <a href="{% url 'accounts:login' %}">Log in</a></p>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('input[name="role"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const isDoctor = document.querySelector('input[name="role"]:checked').value === 'doctor';
+    document.querySelectorAll('.doctor-only-field').forEach(el => el.style.display = isDoctor ? '' : 'none');
+    document.querySelectorAll('.patient-only-field').forEach(el => el.style.display = isDoctor ? 'none' : '');
+  });
+});
+</script>
+{% endblock %}

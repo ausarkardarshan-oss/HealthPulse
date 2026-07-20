@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · HealthPulse{% endblock %}
+
+{% block content %}
+
+<!-- ============ DASHBOARD TAB ============ -->
+<section class="hp-tab active" id="tab-dashboard">
+  <div class="hp-page-header animate__animated animate__fadeIn">
+    <h1>Welcome back, {{ request.user.first_name|default:request.user.username }} 👋</h1>
+    <p>{% if role == "patient" %}Here's a snapshot of your health today.{% else %}Here's what's happening with your patients today.{% endif %}</p>
+  </div>
+
+  <div class="hp-cards-grid">
+    {% if role == "patient" %}
+      <div class="hp-stat-card grad-blue animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-heart-pulse"></i>
+        <div class="hp-stat-value">{{ latest_vitals.bp_systolic|default:"--" }}/{{ latest_vitals.bp_diastolic|default:"--" }}</div>
+        <div class="hp-stat-label">Latest Blood Pressure</div>
+      </div>
+      <div class="hp-stat-card grad-red animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-droplet"></i>
+        <div class="hp-stat-value">{{ latest_vitals.sugar|default:"--" }} <small>mg/dL</small></div>
+        <div class="hp-stat-label">Sugar Level</div>
+      </div>
+      <div class="hp-stat-card grad-green animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-weight-scale"></i>
+        <div class="hp-stat-value">{{ latest_vitals.weight|default:"--" }} <small>kg</small></div>
+        <div class="hp-stat-label">Weight</div>
+      </div>
+      <div class="hp-stat-card grad-purple animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-calendar-days"></i>
+        <div class="hp-stat-value">{% if upcoming_appointment %}{{ upcoming_appointment.date }}{% else %}None{% endif %}</div>
+        <div class="hp-stat-label">Upcoming Appointment</div>
+      </div>
+      <div class="hp-stat-card grad-teal animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-user-doctor"></i>
+        <div class="hp-stat-value">{% if assigned_doctor %}Dr. {{ assigned_doctor.full_name }}{% else %}Unassigned{% endif %}</div>
+        <div class="hp-stat-label">Assigned Doctor</div>
+      </div>
+      <div class="hp-stat-card grad-orange animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-chart-simple"></i>
+        <div class="hp-stat-value"><span class="counter" data-target="{{ health_score|default:0 }}">0</span>/100</div>
+        <div class="hp-stat-label">Health Score</div>
+      </div>
+    {% else %}
+      <div class="hp-stat-card grad-blue animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-users"></i>
+        <div class="hp-stat-value"><span class="counter" data-target="{{ total_patients }}">0</span></div>
+        <div class="hp-stat-label">Total Patients</div>
+      </div>
+      <div class="hp-stat-card grad-green animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-calendar-day"></i>
+        <div class="hp-stat-value"><span class="counter" data-target="{{ todays_appointments|length }}">0</span></div>
+        <div class="hp-stat-label">Today's Appointments</div>
+      </div>
+      <div class="hp-stat-card grad-purple animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-hourglass-half"></i>
+        <div class="hp-stat-value"><span class="counter" data-target="{{ pending_requests }}">0</span></div>
+        <div class="hp-stat-label">Pending Requests</div>
+      </div>
+      <div class="hp-stat-card grad-teal animate__animated animate__fadeInUp">
+        <i class="fa-solid fa-stethoscope"></i>
+        <div class="hp-stat-value">{{ doctor.specialization|default:"General Physician" }}</div>
+        <div class="hp-stat-label">Specialization</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if role == "doctor" %}
+  <div class="hp-panel">
+    <div class="hp-panel-header"><h3>Today's Appointments</h3></div>
+    <div class="table-responsive">
+      <table class="table hp-table">
+        <thead><tr><th>Time</th><th>Patient</th><th>Reason</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for a in todays_appointments %}
+          <tr><td>{{ a.time_slot }}</td><td>#{{ a.patient_id }}</td><td>{{ a.reason|default:"—" }}</td><td><span class="hp-pill hp-pill-upcoming">{{ a.status }}</span></td></tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-muted">No appointments scheduled for today.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<!-- ============ PATIENTS TAB (doctor only) ============ -->
+{% if role == "doctor" %}
+<section class="hp-tab" id="tab-patients">
+  <div class="hp-page-header"><h1>Patients</h1><p>Search and review patient records.</p></div>
+  <div class="hp-panel">
+    <div class="hp-panel-header">
+      <input type="text" id="patientSearchInput" class="form-control hp-input" placeholder="Search by name or phone...">
+    </div>
+    <div class="table-responsive">
+      <table class="table hp-table">
+        <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Gender</th><th>DOB</th><th></th></tr></thead>
+        <tbody id="patientsTableBody"><tr><td colspan="6" class="text-muted">Loading patients...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="hp-panel" id="patientDetailPanel" style="display:none;">
+    <div class="hp-panel-header"><h3 id="patientDetailName"></h3><button class="btn-close" id="closePatientDetail"></button></div>
+    <div id="patientDetailBody"></div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ============ VITALS TAB ============ -->
+<section class="hp-tab" id="tab-vitals">
+  <div class="hp-page-header"><h1>Vitals</h1><p>{% if role == "patient" %}Log your readings and track trends.{% else %}Review patient vitals.{% endif %}</p></div>
+
+  {% if role == "patient" %}
+  <div class="hp-panel glass-card animate__animated animate__fadeIn">
+    <div class="hp-panel-header"><h3>Add a reading</h3></div>
+    <form id="vitalsForm" class="hp-form-grid">
+      <div><label>Blood Pressure - Systolic</label><input type="number" step="0.1" name="bp_systolic" class="form-control hp-input" placeholder="120"></div>
+      <div><label>Blood Pressure - Diastolic</label><input type="number" step="0.1" name="bp_diastolic" class="form-control hp-input" placeholder="80"></div>
+      <div><label>Sugar (mg/dL)</label><input type="number" step="0.1" name="sugar" class="form-control hp-input" placeholder="95"></div>
+      <div><label>Weight (kg)</label><input type="number" step="0.1" name="weight" class="form-control hp-input" placeholder="68"></div>
+      <div><label>Heart Rate (bpm)</label><input type="number" step="0.1" name="heart_rate" class="form-control hp-input" placeholder="72"></div>
+      <div><label>Temperature (°C)</label><input type="number" step="0.1" name="temperature" class="form-control hp-input" placeholder="36.6"></div>
+      <div class="hp-form-actions"><button type="submit" class="hp-btn-primary"><i class="fa-solid fa-plus"></i> Save Reading</button></div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="hp-cards-grid" id="vitalsSummaryCards"></div>
+
+  <div class="hp-panel">
+    <div class="hp-panel-header"><h3>History</h3></div>
+    <div class="table-responsive">
+      <table class="table hp-table">
+        <thead><tr><th>Date</th><th>BP</th><th>Sugar</th><th>Weight</th><th>Heart Rate</th><th>Temp</th><th>Status</th></tr></thead>
+        <tbody id="vitalsHistoryBody"><tr><td colspan="7" class="text-muted">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APPOINTMENTS TAB ============ -->
+<section class="hp-tab" id="tab-appointments">
+  <div class="hp-page-header"><h1>Appointments</h1><p>{% if role == "patient" %}Book and manage your appointments.{% else %}Your appointment schedule.{% endif %}</p></div>
+
+  {% if role == "patient" %}
+  <div class="hp-panel glass-card">
+    <div class="hp-panel-header"><h3>Book an appointment</h3></div>
+    <form id="bookingForm" class="hp-form-grid">
+      <div>
+        <label>Doctor</label>
+        <select name="doctor_id" id="doctorSelect" class="form-select hp-input" required>
+          <option value="">Select a doctor</option>
+          {% for d in doctors %}
+          <option value="{{ d.django_user_id }}">Dr. {{ d.full_name }} — {{ d.specialization }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div><label>Date</label><input type="date" name="date" id="apptDate" class="form-control hp-input" required></div>
+      <div class="hp-form-full">
+        <label>Available Time Slots</label>
+        <div id="slotGrid" class="hp-slot-grid"><span class="text-muted">Choose a doctor and date to see available slots.</span></div>
+      </div>
+      <div class="hp-form-full"><label>Reason</label><textarea name="reason" class="form-control hp-input" rows="2" placeholder="Briefly describe the reason for your visit"></textarea></div>
+      <div class="hp-form-actions"><button type="submit" class="hp-btn-primary"><i class="fa-solid fa-calendar-plus"></i> Book Appointment</button></div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="hp-panel">
+    <div class="hp-panel-header">
+      <h3>Timeline</h3>
+      <div class="hp-tab-pills">
+        <button class="hp-pill-btn active" data-status="upcoming">Upcoming</button>
+        <button class="hp-pill-btn" data-status="completed">Completed</button>
+        <button class="hp-pill-btn" data-status="cancelled">Cancelled</button>
+      </div>
+    </div>
+    <div id="appointmentsTimeline" class="hp-timeline"><div class="text-muted">Loading appointments...</div></div>
+  </div>
+</section>
+
+<!-- ============ DOCTORS TAB (patient only) ============ -->
+{% if role == "patient" %}
+<section class="hp-tab" id="tab-doctors">
+  <div class="hp-page-header"><h1>Doctors</h1><p>Browse doctors available on HealthPulse.</p></div>
+  <div class="hp-cards-grid" id="doctorsGrid">
+    {% for d in doctors %}
+    <div class="hp-doctor-card animate__animated animate__fadeInUp">
+      <div class="hp-doctor-avatar"><i class="fa-solid fa-user-doctor"></i></div>
+      <h4>Dr. {{ d.full_name }}</h4>
+      <p>{{ d.specialization }}</p>
+    </div>
+    {% empty %}
+    <p class="text-muted">No doctors registered yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ============ ANALYTICS TAB ============ -->
+<section class="hp-tab" id="tab-analytics">
+  <div class="hp-page-header">
+    <h1>Health Analytics</h1>
+    <div class="hp-tab-pills">
+      <button class="hp-pill-btn period-btn" data-period="7d">7 Days</button>
+      <button class="hp-pill-btn period-btn active" data-period="30d">30 Days</button>
+      <button class="hp-pill-btn period-btn" data-period="90d">90 Days</button>
+      <button class="hp-pill-btn period-btn" data-period="1y">Year</button>
+    </div>
+  </div>
+  <div class="hp-charts-grid">
+    <div class="hp-panel glass-card"><h3>Blood Pressure Trend</h3><canvas id="bpChart"></canvas></div>
+    <div class="hp-panel glass-card"><h3>Sugar Trend</h3><canvas id="sugarChart"></canvas></div>
+    <div class="hp-panel glass-card"><h3>Weight Trend</h3><canvas id="weightChart"></canvas></div>
+    <div class="hp-panel glass-card"><h3>Heart Rate Trend</h3><canvas id="hrChart"></canvas></div>
+  </div>
+</section>
+
+<!-- ============ SETTINGS TAB ============ -->
+<section class="hp-tab" id="tab-settings">
+  <div class="hp-page-header"><h1>Settings</h1></div>
+  <div class="hp-panel glass-card">
+    <form method="post" action="{% url 'accounts:settings' %}">
+      {% csrf_token %}
+      <div class="hp-settings-row">
+        <div><strong>Dark mode</strong><p class="text-muted">Switch the whole dashboard to a dark theme.</p></div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="dark_mode" {% if profile.dark_mode %}checked{% endif %}>
+        </div>
+      </div>
+      <div class="hp-settings-row">
+        <div><strong>Email notifications</strong><p class="text-muted">Receive appointment and vitals updates by email.</p></div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="notify_email" {% if profile.notify_email %}checked{% endif %}>
+        </div>
+      </div>
+      <div class="hp-settings-row">
+        <div><strong>SMS notifications</strong><p class="text-muted">Receive reminders by text message.</p></div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="notify_sms" {% if profile.notify_sms %}checked{% endif %}>
+        </div>
+      </div>
+      <button type="submit" class="hp-btn-primary mt-3"><i class="fa-solid fa-check"></i> Save Settings</button>
+    </form>
+  </div>
+</section>
+
+{% endblock %}
