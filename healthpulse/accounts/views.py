@@ -31,28 +31,38 @@ def register_view(request):
                 profile.phone = data["phone"]
                 profile.save()
 
-                if data["role"] == Profile.ROLE_DOCTOR:
-                    Doctor(
-                        django_user_id=user.id,
-                        full_name=data["full_name"],
-                        email=data["email"],
-                        phone=data["phone"],
-                        specialization=data.get("specialization") or "General Physician",
-                    ).save()
-                else:
-                    Patient(
-                        django_user_id=user.id,
-                        full_name=data["full_name"],
-                        aadhaar=data["aadhaar"],
-                        phone=data["phone"],
-                        email=data["email"],
-                        gender=data["gender"],
-                        dob=data["dob"],
-                        address=data.get("address", ""),
-                    ).save()
+                mongo_message = None
+                try:
+                    if data["role"] == Profile.ROLE_DOCTOR:
+                        Doctor(
+                            django_user_id=user.id,
+                            full_name=data["full_name"],
+                            email=data["email"],
+                            phone=data["phone"],
+                            specialization=data.get("specialization") or "General Physician",
+                        ).save()
+                    else:
+                        Patient(
+                            django_user_id=user.id,
+                            full_name=data["full_name"],
+                            aadhaar=data["aadhaar"],
+                            phone=data["phone"],
+                            email=data["email"],
+                            gender=data["gender"],
+                            dob=data["dob"],
+                            address=data.get("address", ""),
+                        ).save()
+                except Exception as exc:
+                    mongo_message = (
+                        "Account created successfully, but MongoDB is unavailable right now. "
+                        "Some clinical features will be limited until the database is running."
+                    )
 
                 login(request, user)
-                messages.success(request, f"Welcome to HealthPulse, {data['full_name']}!")
+                if mongo_message:
+                    messages.warning(request, mongo_message)
+                else:
+                    messages.success(request, f"Welcome to HealthPulse, {data['full_name']}!")
                 return redirect("core:dashboard")
             except HealthPulseException as exc:
                 messages.error(request, exc.message)
