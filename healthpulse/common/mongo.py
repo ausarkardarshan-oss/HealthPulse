@@ -36,12 +36,20 @@ def connect_mongo():
             settings.MONGO_PORT,
             exc,
         )
-        disconnect(alias="default")
-        import mongomock
+        try:
+            disconnect(alias="default")
+        except Exception:
+            pass
 
-        connect(
-            db=settings.MONGO_DB_NAME,
-            mongo_client_class=mongomock.MongoClient,
-            alias="default",
-        )
+        try:
+            import mongomock
+            connect(
+                db=settings.MONGO_DB_NAME,
+                host=settings.MONGO_HOST,
+                mongo_client_class=mongomock.MongoClient,
+                alias="default",
+            )
+            logger.info("Successfully connected to in-memory mongomock database.")
+        except Exception as mock_exc:
+            logger.warning("Failed to initialize mongomock fallback: %s", mock_exc)
 
