@@ -7,4 +7,6 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         from common.mongo import connect_mongo
+        from common.sync import sync_all_profiles_to_mongo
         connect_mongo()
+        sync_all_profiles_to_mongo()

@@ -45,7 +45,10 @@ class Command(BaseCommand):
                 user.save()
             profile = user.profile
             profile.role = Profile.ROLE_DOCTOR
+            profile.full_name = d["full_name"]
+            profile.email = user.email
             profile.phone = d["phone"]
+            profile.specialization = d["specialization"]
             profile.save()
 
             Doctor.objects(django_user_id=user.id).delete()
@@ -65,14 +68,21 @@ class Command(BaseCommand):
             if created:
                 user.set_password("password123")
                 user.save()
+            aadhaar_val = f"{random.randint(10**11, 10**12 - 1)}"
             profile = user.profile
             profile.role = Profile.ROLE_PATIENT
+            profile.full_name = p["full_name"]
+            profile.email = user.email
             profile.phone = p["phone"]
+            profile.aadhaar = aadhaar_val
+            profile.gender = p["gender"]
+            profile.dob = p["dob"]
+            profile.assigned_doctor_id = doctor_users[0].id
             profile.save()
 
             Patient.objects(django_user_id=user.id).delete()
             Patient(
-                django_user_id=user.id, full_name=p["full_name"], aadhaar=f"{random.randint(10**11, 10**12 - 1)}",
+                django_user_id=user.id, full_name=p["full_name"], aadhaar=aadhaar_val,
                 phone=p["phone"], email=user.email, gender=p["gender"], dob=p["dob"],
                 assigned_doctor_id=doctor_users[0].id,
             ).save()

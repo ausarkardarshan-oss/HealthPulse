@@ -49,7 +49,8 @@ def dashboard(request):
 
     if profile.is_patient:
         try:
-            patient = Patient.objects(django_user_id=request.user.id).first()
+            from common.sync import get_or_sync_patient, get_or_sync_doctor
+            patient = get_or_sync_patient(request.user.id)
             latest_vitals = Vitals.objects(patient_id=request.user.id).order_by("-recorded_at").first()
             upcoming = (
                 Appointment.objects(patient_id=request.user.id, status="upcoming")
@@ -58,9 +59,9 @@ def dashboard(request):
             )
             assigned_doctor = None
             if patient and patient.assigned_doctor_id:
-                assigned_doctor = Doctor.objects(django_user_id=patient.assigned_doctor_id).first()
+                assigned_doctor = get_or_sync_doctor(patient.assigned_doctor_id)
             elif upcoming:
-                assigned_doctor = Doctor.objects(django_user_id=upcoming.doctor_id).first()
+                assigned_doctor = get_or_sync_doctor(upcoming.doctor_id)
 
             context.update({
                 "patient": patient,
@@ -81,7 +82,8 @@ def dashboard(request):
             })
     else:
         try:
-            doctor = Doctor.objects(django_user_id=request.user.id).first()
+            from common.sync import get_or_sync_doctor
+            doctor = get_or_sync_doctor(request.user.id)
             today = datetime.utcnow().strftime("%Y-%m-%d")
             context.update({
                 "doctor": doctor,

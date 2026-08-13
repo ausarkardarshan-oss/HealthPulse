@@ -28,30 +28,20 @@ def register_view(request):
                 )
                 profile = user.profile  # created by the post_save signal
                 profile.role = data["role"]
+                profile.full_name = data["full_name"]
+                profile.email = data["email"]
                 profile.phone = data["phone"]
+                profile.aadhaar = data.get("aadhaar", "")
+                profile.gender = data.get("gender", "")
+                profile.dob = data.get("dob", "")
+                profile.address = data.get("address", "")
+                profile.specialization = data.get("specialization") or "General Physician"
                 profile.save()
 
                 mongo_message = None
                 try:
-                    if data["role"] == Profile.ROLE_DOCTOR:
-                        Doctor(
-                            django_user_id=user.id,
-                            full_name=data["full_name"],
-                            email=data["email"],
-                            phone=data["phone"],
-                            specialization=data.get("specialization") or "General Physician",
-                        ).save()
-                    else:
-                        Patient(
-                            django_user_id=user.id,
-                            full_name=data["full_name"],
-                            aadhaar=data["aadhaar"],
-                            phone=data["phone"],
-                            email=data["email"],
-                            gender=data["gender"],
-                            dob=data["dob"],
-                            address=data.get("address", ""),
-                        ).save()
+                    from common.sync import sync_profile_to_mongo
+                    sync_profile_to_mongo(profile)
                 except Exception as exc:
                     mongo_message = (
                         "Account created successfully, but MongoDB is unavailable right now. "

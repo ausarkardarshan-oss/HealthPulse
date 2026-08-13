@@ -51,7 +51,8 @@ def patient_detail(request, user_id):
         return JsonResponse({"ok": False, "error": "Not authorized to view this record."}, status=403)
 
     try:
-        patient = Patient.objects(django_user_id=user_id).first()
+        from common.sync import get_or_sync_patient
+        patient = get_or_sync_patient(user_id)
         if not patient:
             return JsonResponse({"ok": False, "error": "Patient not found."}, status=404)
 
@@ -104,21 +105,27 @@ def update_patient(request):
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "POST required."}, status=405)
 
-    patient = Patient.objects(django_user_id=request.user.id).first()
+    from common.sync import get_or_sync_patient
+    patient = get_or_sync_patient(request.user.id)
     if not patient:
         return JsonResponse({"ok": False, "error": "Patient record not found."}, status=404)
 
     data = request.json
+    profile = request.user.profile
     try:
         if "phone" in data:
             patient.phone = validators.validate_phone(data["phone"])
+            profile.phone = patient.phone
         if "email" in data:
             patient.email = validators.validate_email(data["email"])
+            profile.email = patient.email
         if "address" in data:
             patient.address = data["address"]
+            profile.address = patient.address
     except HealthPulseException as exc:
         return JsonResponse({"ok": False, "error": exc.message}, status=400)
 
+    profile.save()
     patient.save()
     return JsonResponse({"ok": True, "patient": _patient_to_dict(patient)})
 
